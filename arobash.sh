@@ -1,211 +1,155 @@
 #!/usr/bin/env bash
 
-#Check Bash Version (minimum v3.2)
+case $- in
+  *i*) ;;
+    *) return;;
+esac
+
 if [-z "${BASH_VERSION-}" ]; then
-	printf "Error: Bash 3.2 or higher is required for Arobash.\n"
-	printf "Error: Please try runnning this script in Bash environment.\n"
-	return 1 >/dev/null 2>&1 || exit 1
+	printf "arobash: Bash 3.2 or higher is required for Arobash.\n"
+	printf "arobash: Please try runnning this script in Bash environment.\n"
+	return 1
 fi
 
-if [[ ! ${BASH_VERSINFO[0]-} ]] || ((BASH_VERSINFO[0] < 3 || BASH_VERSINFO[0] == 3 && BASH_VERSINFO[1] < 2)); then
-	printf "Error: Bash 3.2 or higher is required for Arobash.\n" >&2
-	printf "Error: Upgrade Bash and try again.\n" >&2
-	return 2 &>/dev/null || exit 2
+_arb_bash_version=$((BASH_VERSINFO[0] * 10000 + BASH_VERSINFO[1] * 100 + BASH_VERSINFO[2]))
+if ((_arb_bash_version < 30200)); then
+  printf '%s\n' "arobash: ARB does not support this version of Bash ($BASH_VERSION)" >&2
+  printf '%s\n' "arobash: Use ARB with Bash 3.2 or higher" >&2
+  return 1
 fi
 
-_arb_install_print_version() {
-	local ARB_VERSINFO
-	ARB_VERSINFO=(1 0 0 0 master noarch)
-	printf '%s\n' 'Install script for Arobash (https://github.com/adesgran/arobash)'
-	printf 'arobash, version %s.%s.%s(%s)-%s (%s)\n' "${OMB_VERSINFO[@]}"
-}
 
+ARB_VERSINFO=(1 0 0 0 main noarch)
+ARB_VERSION="${ARB_VERSINFO[0]}.${ARB_VERSINFO[1]}.${ARB_VERSINFO[2]}(${ARB_VERSINFO[3]})-${ARB_VERSINFO[4]} (${ARB_VERSINFO[5]})"
+_arb_version=$((ARB_VERSINFO[0] * 10000 + ARB_VERSINFO[1] * 100 + ARB_VERSINFO[2]))
 
-_arb_install_print_usage() {
-  printf '%s\n' \
-    'usage: ./install.sh [--unattended | --dry-run | --help | --usage | --version]' \
-    'usage: bash -c "$(< install.sh)" [--unattended | --dry-run | --help | --usage |' \
-    '           --version]'
-}
+# Check for updates on initial load...
+if [[ $DISABLE_AUTO_UPDATE != true ]]; then
+  source "$ASH"/tools/check_for_upgrade.sh
+fi
 
-_arb_install_print_help() {
-  _arb_install_print_version
-  _arb_install_print_usage
-  printf '%s\n' \
-    '' \
-    'OPTIONS' \
-    '  --help            show this help' \
-    '  --usage           show usage' \
-    '  --unattended      attend the meeting' \
-    '  --help            show version' \
-    ''
-}
+# Initializes Arobash
 
-_arb_install_readargs() {
-	while (($#)); do
-    local arg=$1; shift
-    if [[ :$install_opts: != *:literal:* ]]; then
-      case $arg in
-      --help | --usage | --unattended | --dry-run)
-        install_opts+=:${arg#--}
-        continue ;;
-      --version | -v)
-        install_opts+=:version
-        continue ;;
-      --)
-        install_opts+=:literal
-        continue ;;
-      -*)
-        install_opts+=:error
-        if [[ $arg == -[!-]?* ]]; then
-          printf 'install (arobash): %s\n' "$RED$BOLD[Error]$NORMAL ${RED}unrecognized options '$arg'.$NORMAL"
-        else
-          printf 'install (arobash): %s\n' "$RED$BOLD[Error]$NORMAL ${RED}unrecognized option '$arg'.$NORMAL"
-        fi
-        continue ;;
-      esac
-    fi
+# Set ASH_CUSTOM to the path where your custom config files
+# and plugins exists, or else we will use the default custom/
+: "${ASH_CUSTOM:=$ASH/custom}"
 
-    install_opts+=:error
-    printf 'install (arobash): %s\n' "$RED$BOLD[Error]$NORMAL unrecognized argument '$arg'."
+# Set ASH_CACHE_DIR to the path where cache files should be created
+# or else we will use the default cache/
+: "${ASH_CACHE_DIR:=$ASH/cache}"
+
+_arb_module_loaded=
+_arb_module_require() {
+  local status=0
+  local -a files=()
+  while (($#)); do
+    local type=lib name=$1; shift
+    [[ $name == *:* ]] && type=${name%%:*} name=${name#*:}
+    name=${name%.bash}
+    name=${name%.sh}
+    [[ ' '$_arb_module_loaded' ' == *" $type:$name "* ]] && continue
+    _arb_module_loaded="$_arb_module_loaded $type:$name"
+
+    local -a locations=()
+    case $type in
+    lib)        locations=({"$ASH_CUSTOM","$ASH"}/lib/"$name".{bash,sh}) ;;
+    plugin)     locations=({"$ASH_CUSTOM","$ASH"}/plugins/"$name"/"$name".plugin.{bash,sh}) ;;
+    alias)      locations=({"$ASH_CUSTOM","$ASH"}/aliases/"$name".aliases.{bash,sh}) ;;
+    completion) locations=({"$ASH_CUSTOM","$ASH"}/completions/"$name".completion.{bash,sh}) ;;
+    theme)      locations=({"$ASH_CUSTOM"{,/themes},"$ASH"/themes}/"$name"/"$name".theme.{bash,sh}) ;;
+    *)
+      echo "arobash (module_require): unknown module type '$type'." >&2
+      status=2
+      continue ;;
+    esac
+
+    local path
+    for path in "${locations[@]}"; do
+      if [[ -f $path ]]; then
+        files+=("$path")
+        continue 2
+      fi
+    done
+
+    echo "arobash (module_require): module '$type:$name' not found." >&2
+    status=127
   done
+
+  if ((status==0)); then
+    local path
+    for path in "${files[@]}"; do
+      source "$path" || status=$?
+    done
+  fi
+
+  return "$status"
 }
 
-_arb_install_run() {
-  if [[ :$install_opts: == *:dry-run:* ]]; then
-    printf '%s\n' "$BOLD$GREEN[dryrun]$NORMAL $BOLD$*$NORMAL" >&5
-  else
-    printf '%s\n' "$BOLD\$ $*$NORMAL" >&5
-    command "$@"
+_arb_module_require_lib()        { _arb_module_require "${@/#/lib:}"; }
+_arb_module_require_plugin()     { _arb_module_require "${@/#/plugin:}"; }
+_arb_module_require_alias()      { _arb_module_require "${@/#/alias:}"; }
+_arb_module_require_completion() { _arb_module_require "${@/#/completion:}"; }
+_arb_module_require_theme()      { _arb_module_require "${@/#/theme:}"; }
+
+# Load all of the config files in ~/.arobash/lib that end in .sh
+# TIP: Add files you don't want in git to .gitignore
+_arb_module_require_lib utils
+_arb_util_glob_expand _arb_init_files '{"$ASH","$ASH_CUSTOM"}/lib/*.{bash,sh}'
+_arb_init_files=("${_arb_init_files[@]##*/}")
+_arb_init_files=("${_arb_init_files[@]%.bash}")
+_arb_init_files=("${_arb_init_files[@]%.sh}")
+_arb_module_require_lib "${_arb_init_files[@]}"
+unset -v _arb_init_files
+
+# Figure out the SHORT hostname
+if [[ "$OSTYPE" = darwin* ]]; then
+  # macOS's $HOST changes with dhcp, etc. Use ComputerName if possible.
+  SHORT_HOST=$(scutil --get ComputerName 2>/dev/null) || SHORT_HOST=${HOST/.*/}
+else
+  SHORT_HOST=${HOST/.*/}
+fi
+
+# Load all of the plugins that were defined in ~/.bashrc
+_arb_module_require_plugin "${plugins[@]}"
+
+# Load all of the aliases that were defined in ~/.bashrc
+_arb_module_require_alias "${aliases[@]}"
+
+# Load all of the completions that were defined in ~/.bashrc
+_arb_module_require_completion "${completions[@]}"
+
+# Load all of your custom configurations from custom/
+_arb_util_glob_expand _arb_init_files '"$ASH_CUSTOM"/*.{sh,bash}'
+for _arb_init_file in "${_arb_init_files[@]}"; do
+  [[ -f $_arb_init_file ]] &&
+    source "$_arb_init_file"
+done
+unset -v _arb_init_files _arb_init_file
+
+# Load the theme
+if [[ $ASH_THEME == random ]]; then
+  _arb_util_glob_expand _arb_init_files '"$ASH"/themes/*/*.theme.sh'
+  if ((${#_arb_init_files[@]})); then
+    _arb_init_file=${_arb_init_files[RANDOM%${#_arb_init_files[@]}]}
+    source "$_arb_init_file"
+    ARB_THEME_RANDOM_SELECTED=${_arb_init_file##*/}
+    ARB_THEME_RANDOM_SELECTED=${ARB_THEME_RANDOM_SELECTED%.theme.bash}
+    ARB_THEME_RANDOM_SELECTED=${ARB_THEME_RANDOM_SELECTED%.theme.sh}
+    echo "[arobash] Random theme '$ARB_THEME_RANDOM_SELECTED' ($_arb_init_file) loaded..."
   fi
-}
+  unset -v _arb_init_files _arb_init_file
+elif [[ $ASH_THEME ]]; then
+  _arb_module_require_theme "$ASH_THEME"
+fi
 
-_arb_install_main() {
-  # Use colors, but only if connected to a terminal, and that terminal
-  # supports them.
-  if hash tput >/dev/null 2>&1; then
-    local ncolors=$(tput colors 2>/dev/null || tput Co 2>/dev/null || echo -1)
-  fi
+if [[ $PROMPT ]]; then
+  export PS1="\["$PROMPT"\]"
+fi
 
-  if [[ -t 1 && -n $ncolors && $ncolors -ge 8 ]]; then
-    local RED=$(tput setaf 1 2>/dev/null || tput AF 1 2>/dev/null)
-    local GREEN=$(tput setaf 2 2>/dev/null || tput AF 2 2>/dev/null)
-    local YELLOW=$(tput setaf 3 2>/dev/null || tput AF 3 2>/dev/null)
-    local BLUE=$(tput setaf 4 2>/dev/null || tput AF 4 2>/dev/null)
-    local BOLD=$(tput bold 2>/dev/null || tput md 2>/dev/null)
-    local NORMAL=$(tput sgr0 2>/dev/null || tput me 2>/dev/null)
-  else
-    local RED=""
-    local GREEN=""
-    local YELLOW=""
-    local BLUE=""
-    local BOLD=""
-    local NORMAL=""
-  fi
+if ! _arb_util_command_exists '__git_ps1' ; then
+  source "$ASH/tools/git-prompt.sh"
+fi
 
-  local install_opts=
-  _arb_install_readargs "$@"
-
-  if [[ :$install_opts: == *:error:* ]]; then
-    printf '\n'
-    install_opts+=:usage
-  fi
-  if [[ :$install_opts: == *:help:* ]]; then
-    _arb_install_print_help
-    install_opts+=:exit
-  else
-    if [[ :$install_opts: == *:version:* ]]; then
-      _arb_install_print_version
-      install_opts+=:exit
-    fi
-    if [[ :$install_opts: == *:usage:* ]]; then
-      _arb_install_print_usage
-      install_opts+=:exit
-    fi
-  fi
-  if [[ :$install_opts: == *:error:* ]]; then
-    return 2
-  elif [[ :$install_opts: == *:exit:* ]]; then
-    return 0
-  fi
-
-  # Only enable exit-on-error after the non-critical colorization stuff,
-  # which may fail on systems lacking tput or terminfo
-
-  set -e
-
-  if [[ ! $ASH ]]; then
-    ASH=~/.arobash
-  fi
-
-  if [[ -d $ASH ]]; then
-    printf "${YELLOW}You already have Arobash installed.${NORMAL}\n"
-    printf "You'll need to remove $ASH if you want to re-install.\n"
-    return 1
-  fi
-
-  # Prevent the cloned repository from having insecure permissions. Failing to do
-  # so causes compinit() calls to fail with "command not found: compdef" errors
-  # for users with insecure umasks (e.g., "002", allowing group writability). Note
-  # that this will be ignored under Cygwin by default, as Windows ACLs take
-  # precedence over umasks except for filesystems mounted with option "noacl".
-  umask g-w,o-w
-
-  printf "${BLUE}Cloning Arobash...${NORMAL}\n"
-  type -P git &>/dev/null || {
-    echo "Error: git is not installed"
-    return 1
-  }
-  # The Windows (MSYS) Git is not compatible with normal use on cygwin
-  if [[ $OSTYPE = cygwin ]]; then
-    if command git --version | command grep msysgit > /dev/null; then
-      echo "Error: Windows/MSYS Git is not supported on Cygwin"
-      echo "Error: Make sure the Cygwin git package is installed and is first on the path"
-      return 1
-    fi
-  fi
-  _arb_install_run git clone --depth=1 https://github.com/adesgran/arobash "$ASH" || {
-    printf "Error: git clone of arobash repo failed\n"
-    return 1
-  }
-
-  printf "${BLUE}Looking for an existing bash config...${NORMAL}\n"
-  if [[ -f ~/.bashrc || -h ~/.bashrc ]]; then
-    local bashrc_backup=~/.bashrc.arb-backup-$(date +%Y%m%d%H%M%S)
-    printf "${YELLOW}Found ~/.bashrc.${NORMAL} ${GREEN}Backing up to $bashrc_backup${NORMAL}\n"
-    _arb_install_run mv ~/.bashrc "$bashrc_backup"
-  fi
-
-  printf "${BLUE}Using the Arobash template file and adding it to ~/.bashrc${NORMAL}\n"
-  _arb_install_run cp "$ASH"/templates/bashrc.osh-template ~/.bashrc
-  sed "/^export ASH=/ c\\
-export ASH=$ASH
-  " ~/.bashrc >| ~/.bashrc.arb-temp
-  _arb_install_run mv -f ~/.bashrc.arb-temp ~/.bashrc
-
-  set +e
-
-  # MOTD message :)
-  printf '%s' "$GREEN"
-  printf '%s\n' \
-	"  ___            _                 _     " \
-	" / _ \          | |      ____     | |    " \
-	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  " \
-	"|  _  | '__/ _ \| '_ \ / / _\` / __| '_ \ " \
-	"| | | | | | (_) | |_) | | (_| \__ \ | | |" \
-	"\_| |_/_|  \___/|_.__/ \ \__,_|___/_| |_|" \
-	"                        \____/           ..... is now installed" \
-    "Please look over the ~/.bashrc file to select plugins, themes, and options"
-  printf "${BLUE}${BOLD}%s${NORMAL}\n" "To keep up on the latest news and updates, follow us on GitHub: https://github.com/adesgran/arobash"
-
-  if [[ :$install_opts: == *:dry-run:* ]]; then
-    printf '%s\n' "$GREEN$BOLD[dryrun]$NORMAL Sample bashrc is created at '$BOLD$HOME/.bashrc-arbtemp$NORMAL'."
-  elif [[ :$install_opts: != *:unattended:* ]]; then
-    if [[ $- == *i* ]]; then
-      # In case install.sh is sourced from the interactive Bash
-      source ~/.bashrc
-    else
-      exec bash
-    fi
-  fi
-}
+# Adding Support for other OSes
+[ -s /usr/bin/gloobus-preview ] && PREVIEW="gloobus-preview" ||
+[ -s /Applications/Preview.app ] && PREVIEW="/Applications/Preview.app" || PREVIEW="less"
