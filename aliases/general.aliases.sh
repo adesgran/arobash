@@ -1,0 +1,1 @@
+alias ping='echo pong!'
