@@ -41,13 +41,13 @@ function _arb_upgrade {
   fi
 
   printf '%s' "$GREEN" \
-	"  ___            _                 _     \n" \
-	" / _ \          | |      ____     | |    \n" \
-	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  \n" \
-	"|  _  | '__/ _ \| '_ \ / / _\` / __| '_ \ \n" \
-	"| | | | | | (_) | |_) | | (_| \__ \ | | |\n" \
-	"\_| |_/_|  \___/|_.__/ \ \__,_|___/_| |_|\n" \
-	"                        \____/\n" 
+	printf	"  ___            _                 _     " 
+	printf	" / _ \          | |      ____     | |    " 
+	printf	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  "
+	printf	"|  _  | '__/ _ \| '_ \ / / _\` / __| '_ \ "
+	printf	"| | | | | | (_) | |_) | | (_| \__ \ | | |"
+	printf	"\_| |_/_|  \___/|_.__/ \ \__,_|___/_| |_|"
+	printf	"                        \____/" 
   printf "${BLUE}%s\n" "Hooray! Arobash has been updated and/or is at the current version."
   printf "${BLUE}${BOLD}%s${NORMAL}\n" "To keep up on the latest news and updates, follow us on GitHub: https://github.com/adesgran/arobash"
   if [[ $- == *i* ]]; then
