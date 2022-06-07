@@ -40,7 +40,7 @@ function _arb_upgrade {
     return 1
   fi
 
-  printf '%s' "$GREEN" \
+  printf '%s' "$GREEN" 
 	printf	"  ___            _                 _     " 
 	printf	" / _ \          | |      ____     | |    " 
 	printf	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  "
