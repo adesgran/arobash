@@ -7,18 +7,18 @@ function _arb_upgrade_current_epoch {
 }
 
 function _arb_upgrade_update_timestamp {
-  echo "LAST_EPOCH=$(_arb_upgrade_current_epoch)" >| ~/.osh-update
+  echo "LAST_EPOCH=$(_arb_upgrade_current_epoch)" >| ~/.ash-update
 }
 
 function _arb_upgrade_check {
-  if [[ ! -f ~/.osh-update ]]; then
-    # create ~/.osh-update
+  if [[ ! -f ~/.ash-update ]]; then
+    # create ~/.ash-update
     _arb_upgrade_update_timestamp
     return 0
   fi
 
   local LAST_EPOCH
-  . ~/.osh-update
+  . ~/.ash-update
   if [[ ! $LAST_EPOCH ]]; then
     _arb_upgrade_update_timestamp
     return 0
@@ -31,7 +31,7 @@ function _arb_upgrade_check {
     return 0
   fi
 
-  # update ~/.osh-update
+  # update ~/.ash-update
   _arb_upgrade_update_timestamp
   if [[ $DISABLE_UPDATE_PROMPT == true ]] ||
        { read -p '[Oh My Bash] Would you like to check for updates? [Y/n]: ' line &&

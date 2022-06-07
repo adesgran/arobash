@@ -177,7 +177,7 @@ _arb_install_main() {
   fi
 
   printf "${BLUE}Using the Arobash template file and adding it to ~/.bashrc${NORMAL}\n"
-  _arb_install_run cp "$ASH"/templates/bashrc.osh-template ~/.bashrc
+  _arb_install_run cp "$ASH"/templates/bashrc.ash-template ~/.bashrc
   sed "/^export ASH=/ c\\
 export ASH=$ASH
   " ~/.bashrc >| ~/.bashrc.arb-temp
