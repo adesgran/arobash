@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #Check Bash Version (minimum v3.2)
-if [-z "${BASH_VERSION-}" ]; then
+if [ -z "${BASH_VERSION-}" ]; then
 	printf "Error: Bash 3.2 or higher is required for Arobash.\n"
 	printf "Error: Please try runnning this script in Bash environment.\n"
 	return 1 >/dev/null 2>&1 || exit 1
