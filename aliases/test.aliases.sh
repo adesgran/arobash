@@ -1,0 +1,1 @@
+alias aliastest='echo Success'
