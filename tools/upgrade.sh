@@ -41,13 +41,13 @@ function _arb_upgrade {
   fi
 
   printf '%s' "$GREEN" 
-	printf '%s' 	"  ___            _                 _     " 
-	printf '%s' 	" / _ \          | |      ____     | |    " 
-	printf '%s' 	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  "
-	printf '%s' 	"|  _  | '__/ _ \| '_ \ / / _\` / __| '_ \ "
-	printf '%s' 	"| | | | | | (_) | |_) | | (_| \__ \ | | |"
-	printf '%s' 	"\_| |_/_|  \___/|_.__/ \ \__,_|___/_| |_|"
-	printf '%s' 	"                        \____/" 
+	printf '%s\n' 	"  ___            _                 _     " 
+	printf '%s\n' 	" / _ \          | |      ____     | |    " 
+	printf '%s\n' 	"/ /_\ \_ __ ___ | |__   / __ \ ___| |__  "
+	printf '%s\n' 	"|  _  | '__/ _ \| '_ \ / / _\` / __| '_ \ "
+	printf '%s\n' 	"| | | | | | (_) | |_) | | (_| \__ \ | | |"
+	printf '%s\n' 	"\_| |_/_|  \___/|_.__/ \ \__,_|___/_| |_|"
+	printf '%s\n' 	"                        \____/" 
   printf "${BLUE}%s\n" "Hooray! Arobash has been updated and/or is at the current version."
   printf "${BLUE}${BOLD}%s${NORMAL}\n" "To keep up on the latest news and updates, follow us on GitHub: https://github.com/adesgran/arobash"
   if [[ $- == *i* ]]; then
