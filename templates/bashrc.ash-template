@@ -27,6 +27,10 @@ else
 fi
 unset color_prompt force_color_prompt
 
+#NEED TEST
+#parse_git_branch() {
+     #git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
+#}
 
 # To disable aliases, comment following lines.
 aliases=(
@@ -37,5 +41,8 @@ aliases=(
 # To disable the uses of "sudo" by arobash, please set "false" to
 # this variable.  The default behavior for the empty value is "true".
 ARB_USE_SUDO=true
+
+# To define
+# export GIT_USRNAME=
 
 source "$ASH"/arobash.sh
