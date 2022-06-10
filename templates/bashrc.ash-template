@@ -36,6 +36,7 @@ unset color_prompt force_color_prompt
 aliases=(
 	color
 	general
+	git
 )
 
 # To disable the uses of "sudo" by arobash, please set "false" to
